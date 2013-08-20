@@ -1,0 +1,14 @@
+<html>
+<body>
+<h1>Hello!</h1>
+<h2>This is some text</h2>
+<h3>Numbers:</h3>
+<ul>
+$foreach(number : ints)<li>$number</li>
+$end</ul>
+<h3>MORE NUMBERS</h3>
+<ul>
+$(std::setprecision(4))$foreach(number : floats)<li>$number</li>
+$end</ul>
+</body>
+</html>

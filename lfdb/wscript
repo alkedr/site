@@ -1,0 +1,5 @@
+#!/usr/bin/env python
+
+def build(bld):
+	bld.program(features='test', source=['tests/main.cpp'], target='unit_tests')
+

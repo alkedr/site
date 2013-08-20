@@ -1,0 +1,26 @@
+#!/usr/bin/env python
+
+
+from waflib.Task import Task
+class htmltpp(Task):
+	run_str = '${SRC[0].abspath()} ${SRC[1].abspath()} ${TGT}'
+	color   = 'PINK'
+
+from waflib.TaskGen import extension
+@extension('.htmlt')
+def process_src(self, node):
+	tg = self.bld.get_tgen_by_name('htmltpp')
+	comp = tg.link_task.outputs[0]
+	tsk = self.create_task('htmltpp', [comp, node], node.change_ext('.htmltc'))
+	self.source.extend(tsk.outputs)
+
+@extension('.htmltc')
+def process_src(self, node):
+	pass
+
+
+def build(bld):
+	bld.program(source='src/preprocessor.cpp', target='htmltpp')
+	bld(name='templates', source=bld.path.ant_glob('tests/templates/*.htmlt'))
+	bld.program(features='test', use='templates', source=['tests/main.cpp'], target='unit_tests')
+
