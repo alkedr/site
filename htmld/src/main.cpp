@@ -1,29 +1,20 @@
-#include <common/fcgi.hpp>
 #include <common/daemon.hpp>
+#include <common/fcgi.hpp>
 #include <common/templater.hpp>
 
 
-class PageServer : public fcgi::Server {
+class RequestHandler {
 public:
-	using Server::Server;
-
-private:
-	virtual void handleRequest(fcgi::protocol::Request & request, fcgi::protocol::Response & response) {
+	template<class ResponseWriter> void operator()(fcgi::protocol::Request & request, ResponseWriter responseWriter) {
 		std::cerr << __PRETTY_FUNCTION__ << std::endl;
-		response.stdout = "Content-type: text/html\r\n\r\n" +
+		auto response = std::make_shared<fcgi::protocol::Response>();
+		response->stdout = "Content-type: text/html\r\n\r\n" +
 #	include <htmld/templates/index.htmltc>
 		;
+		responseWriter(response);
 	}
 };
 
-class Htmld : public Daemon<PageServer> {
-public:
-	using Daemon::Daemon;
-	virtual std::string name() const override { return "htmld"; }
-	virtual std::string version() const override { return "1.0.0"; }
-};
 
-int main(int argc, char ** argv) {
-	return Htmld(argc, argv).run();
-}
+DAEMON("htmld", "1.0.0", fcgi::Server<RequestHandler>)
 

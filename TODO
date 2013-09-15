@@ -13,18 +13,6 @@
 new-style daemons
 	http://0pointer.de/public/systemd-man/sd-daemon.html
 
-daemon:
-	accepts connections
-	epolls accepted connections
-	(each request has requestId)
-	reads request syncroneously
-	processes and writes answer asyncroneously
-
-	thread accepter accepts incoming connections and adds them to epollFD
-	thread epoller epolls active connections, reads requests and puts them in the queue
-	thread worker takes request from queue, processes it and writes response asyncroneously
-
-
 data daemon:
 	stores a collection of items
 	can save
@@ -81,22 +69,3 @@ data daemon protocol (DDP):
 		class name::Daemon inherits name::Interface and overrides pure virtual methods with methods that do actual work
 		class name::Client inherits name::Interface and overrides pure virtual methods with methods that send request to daemon and wait for response
 
-
-templater:
-
-вставка значения переменной, foreach, include
-
-
-preprocessor:
-	replaces $a with  )" + a + R"(
-	replaces $(foreaсh) with )" + foreach + R"(
-	replaces $foreach(item : container) with )"; for (const auto & item : container) { res += R"(
-	replaces $end with )"; } R"(
-	replaces $include(file.htmlt) with content of that file and preprocesses it
-	replaces $include(file.<any other extension>) with content of that file but doesn't preprocess it
-
-	uses  R"<16chars>( ... )<16chars>"
-	finds 16chars that aren't substring of template
-	to insert dollar sign use &#38;
-	doesn't replace between < and >
-	doesn't replace between $raw( and )

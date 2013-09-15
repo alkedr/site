@@ -30,7 +30,6 @@ public:
 	std::size_t dataSize() const { return data_.size(); }
 
 protected:
-
 	std::vector<uint8_t> data_;
 };
 

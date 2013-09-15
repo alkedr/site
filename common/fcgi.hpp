@@ -1,6 +1,5 @@
 #pragma once
 
-
 #include <common/protocol_base.hpp>
 #include <common/server.hpp>
 #include <common/connection.hpp>
@@ -15,9 +14,23 @@ namespace fcgi {
 
 namespace protocol {
 
+enum class RequestType : uint8_t {
+	BEGIN = 1,
+	ABORT = 2,
+	END = 3,
+	PARAMS = 4,
+	STDIN = 5,
+	STDOUT = 6,
+	STDERR = 7,
+	DATA = 8,
+	GET_VALUES = 9,
+	GET_VALUES_RESULT = 10
+};
+
+
 struct Header {
 	uint8_t version;
-	uint8_t type;
+	RequestType type;
 	uint8_t requestIdB1;
 	uint8_t requestIdB0;
 	uint8_t contentLengthB1;
@@ -52,20 +65,6 @@ struct EndRequestBody {
 
 
 
-enum RequestType {
-	REQUEST_TYPE_BEGIN = 1,
-	REQUEST_TYPE_ABORT = 2,
-	REQUEST_TYPE_END = 3,
-	REQUEST_TYPE_PARAMS = 4,
-	REQUEST_TYPE_STDIN = 5,
-	REQUEST_TYPE_STDOUT = 6,
-	REQUEST_TYPE_STDERR = 7,
-	REQUEST_TYPE_DATA = 8,
-	REQUEST_TYPE_GET_VALUES = 9,
-	REQUEST_TYPE_GET_VALUES_RESULT = 10
-};
-
-
 using Message = ::Message<Header>;
 
 
@@ -74,12 +73,12 @@ public:
 
 	void addMessage(const Message & message) {
 		switch (message.header().type) {
-			case (REQUEST_TYPE_BEGIN): handleBeginMessage(message); break;
-			case (REQUEST_TYPE_ABORT): handleAbortMessage(message); break;
-			case (REQUEST_TYPE_PARAMS): handleParamsMessage(message); break;
-			case (REQUEST_TYPE_STDIN): handleStdinMessage(message); break;
-			case (REQUEST_TYPE_DATA): handleDataMessage(message); break;
-			case (REQUEST_TYPE_GET_VALUES): handleGetValuesMessage(message); break;
+			case (RequestType::BEGIN): handleBeginMessage(message); break;
+			case (RequestType::ABORT): handleAbortMessage(message); break;
+			case (RequestType::PARAMS): handleParamsMessage(message); break;
+			case (RequestType::STDIN): handleStdinMessage(message); break;
+			case (RequestType::DATA): handleDataMessage(message); break;
+			case (RequestType::GET_VALUES): handleGetValuesMessage(message); break;
 			default: handleUnknownMessage(message); break;
 		}
 	}
@@ -165,23 +164,18 @@ struct Response {
 }
 
 
-class Server : public ::Server {
+template<class RequestHandler> class ConnectionHandler {
 public:
-	using ::Server::Server;
-
-protected:
-
-	virtual void handleRequest(protocol::Request & request, protocol::Response & response) = 0;
-
-private:
-	virtual void handleConnection(boost::asio::ip::tcp::socket socket) override {
-		std::cerr << __FUNCTION__ << std::endl;
+	void operator()(boost::asio::ip::tcp::socket socket) {
+		LOG_DEBUG(__PRETTY_FUNCTION__);
 		auto connection = std::make_shared<Connection>(std::move(socket));
 		auto request = std::make_shared<protocol::Request>();
 		startReadingHeader(connection, request);
 	}
 
+private:
 	void startReadingHeader(std::shared_ptr<Connection> connection, std::shared_ptr<protocol::Request> request) {
+		LOG_DEBUG(__PRETTY_FUNCTION__);
 		auto message = std::make_shared<protocol::Message>();
 
 		std::cerr << __FUNCTION__ << "  " << message->headerSize() << std::endl;
@@ -189,48 +183,58 @@ private:
 		boost::asio::async_read(
 			connection->socket(),
 			boost::asio::buffer(message->headerPtr(), message->headerSize()),
-			[this, connection, request, message](boost::system::error_code ec, std::size_t length) {
-				message->header().dprint();
-				startReadingBody(connection, request, message);
+			[this, connection, request, message](boost::system::error_code error, std::size_t length) {
+				if (!error) {
+					message->header().dprint();
+					startReadingBody(connection, request, message);
+				} else {
+					LOG_ERROR(error);
+				}
 			}
 		);
 	}
 
 	void startReadingBody(std::shared_ptr<Connection> connection, std::shared_ptr<protocol::Request> request,
 			std::shared_ptr<protocol::Message> message) {
-		std::cerr << __FUNCTION__ << "  " << message->bodySize() << std::endl;
+		LOG_DEBUG(__PRETTY_FUNCTION__);
+
 		message->setBodySize(message->header().contentLength() + message->header().paddingLength);
 		boost::asio::async_read(
 			connection->socket(),
 			boost::asio::buffer(message->bodyPtr(), message->bodySize()),
-			[this, connection, request, message](boost::system::error_code ec, std::size_t length) {
-				request->addMessage(*message);
-				//sleep(1);
-				if (request->isComplete()) {
-					auto response = std::make_shared<protocol::Response>();
-					//response->header().requestId = request->header().requestId;
-					handleRequest(*request, *response);
-					startWritingResponse(connection, response);
+			[this, connection, request, message](boost::system::error_code error, std::size_t length) {
+				if (!error) {
+					request->addMessage(*message);
+					if (request->isComplete()) {
+						requestHandler(
+							*request,
+							[this, connection](std::shared_ptr<protocol::Response> response) {
+								startWritingResponse(connection, response);
+							}
+						);
+					} else {
+						startReadingHeader(connection, request);
+					}
 				} else {
-					startReadingHeader(connection, request);
+					LOG_ERROR(error);
 				}
 			}
 		);
 	}
 
 	void startWritingResponse(std::shared_ptr<Connection> connection, std::shared_ptr<protocol::Response> response) {
-		std::cerr << __FUNCTION__ << std::endl;
-		
+		LOG_DEBUG(__PRETTY_FUNCTION__);
 
 		{
 			protocol::Header header = {
 				.version = 1,
-				.type = 6,
+				.type = protocol::RequestType::STDOUT,
 				.requestIdB0 = 1,
 				.requestIdB1 = 0,
 				.contentLengthB0 = static_cast<uint8_t>(response->stdout.size()),
 				.contentLengthB1 = 0,
-				.paddingLength = 0
+				.paddingLength = 0,
+				.reserved = {}
 			};
 			connection->socket().send(boost::asio::buffer(&header, sizeof(header)));
 			connection->socket().send(boost::asio::buffer(response->stdout.data(), response->stdout.size()));
@@ -239,41 +243,40 @@ private:
 		{
 			protocol::Header header = {
 				.version = 1,
-				.type = 3,
+				.type = protocol::RequestType::STDERR,
 				.requestIdB0 = 1,
 				.requestIdB1 = 0,
 				.contentLengthB0 = 0,
 				.contentLengthB1 = 0,
-				.paddingLength = 0
+				.paddingLength = 0,
+				.reserved = {}
 			};
 			connection->socket().send(boost::asio::buffer(&header, sizeof(header)));
+			connection->socket().send(boost::asio::buffer(response->stderr.data(), response->stderr.size()));
 		}
 
 		{
 			protocol::EndRequestBody body = {};
 			protocol::Header header = {
 				.version = 1,
-				.type = 6,
+				.type = protocol::RequestType::END,
 				.requestIdB0 = 1,
 				.requestIdB1 = 0,
 				.contentLengthB0 = sizeof(body),
 				.contentLengthB1 = 0,
-				.paddingLength = 0
+				.paddingLength = 0,
+				.reserved = {}
 			};
 			connection->socket().send(boost::asio::buffer(&header, sizeof(header)));
 			connection->socket().send(boost::asio::buffer(&body, sizeof(body)));
 		}
-
-
-
-		/*boost::asio::async_write(
-			connection->socket(),
-			boost::asio::buffer(response->data(), response->dataSize()),
-			[this, connection, response](boost::system::error_code ec, std::size_t length) {
-			}
-		);*/
 	}
 
+
+	RequestHandler requestHandler;
 };
+
+
+template<class RequestHandler> using Server = ::Server<ConnectionHandler<RequestHandler>>;
 
 }

@@ -1,5 +1,5 @@
 #include <common/serialize.hpp>
-#include <common/intospection.hpp>
+#include <common/introspection.hpp>
 
 #include <common/catch.hpp>
 
@@ -31,7 +31,7 @@ TEST_CASE( "serialize pod" ) {
 		.f = 12345678,
 		.g = -123456789000,
 		.h = 123456789000,
-		.i = 123.456,
+		.i = 123.456f,
 		.j = 234.456,
 	};
 	TestPod out;
@@ -58,14 +58,14 @@ DEFINE_STRUCT(
 	(std::deque<uint8_t>) e,
 	(std::list<uint16_t>) f,
 //	(std::forward_list<uint64_t>) g,
-	(std::set<float>) h,
-	(std::multiset<float>) i,
-	(std::unordered_set<float>) j,
-	(std::unordered_multiset<float>) k,
-	(std::map<float, int16_t>) l,
-	(std::multimap<float, int16_t>) m,
-	(std::unordered_map<float, int16_t>) n,
-	(std::unordered_multimap<float, int16_t>) o
+	(std::set<double>) h,
+	(std::multiset<double>) i,
+	(std::unordered_set<double>) j,
+	(std::unordered_multiset<double>) k,
+	(std::map<double, int16_t>) l,
+	(std::multimap<double, int16_t>) m,
+	(std::unordered_map<double, int16_t>) n,
+	(std::unordered_multimap<double, int16_t>) o
 )
 
 TEST_CASE( "serialize collections" ) {

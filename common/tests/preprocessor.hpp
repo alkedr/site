@@ -100,8 +100,8 @@ TEST_CASE( "preprocess float variable" ) {
 
 
 TEST_CASE( "preprocess std::array and std::vector" ) {
-	std::array<unsigned short, 3> ints = { 1, 2, 3 };
-	std::vector<double> floats = { 1.125, 2.567, 3.874 };
+	std::array<unsigned short, 3> ints = {{ 1, 2, 3 }};
+	std::vector<double> floats = {{ 1.125, 2.567, 3.874 }};
 
 	std::string res =
 #	include <common/tests/templates/array_vector.htmltc>
@@ -112,8 +112,8 @@ TEST_CASE( "preprocess std::array and std::vector" ) {
 
 
 TEST_CASE( "preprocess formatted floats" ) {
-	std::array<unsigned short, 3> ints = { 1, 2, 3 };
-	std::vector<double> floats = { 1.1254444, 2.5673333, 3.8742222 };
+	std::array<unsigned short, 3> ints = {{ 1, 2, 3 }};
+	std::vector<double> floats = {{ 1.1254444, 2.5673333, 3.8742222 }};
 
 	std::string res =
 #	include <common/tests/templates/formatted_floats.htmltc>

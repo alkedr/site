@@ -8,10 +8,9 @@
 
 
 namespace data {
-
 namespace protocol {
-
 namespace _ {
+
 	struct RequestHeader {
 		uint16_t method;
 		uint16_t requestId;
@@ -23,34 +22,26 @@ namespace _ {
 		uint16_t requestId;
 		uint32_t dataLength;
 	};
+
 }
 
 using Request  = Message<_::RequestHeader >;
 using Response = Message<_::ResponseHeader>;
 
 }
-
 }
 
 
 namespace data {
 
-class Server : ::Server {
+template<class RequestHandler> class ConnectionHandler {
 public:
-	using ::Server::Server;
-
-protected:
-
-	virtual void handleRequest(protocol::Request & request, protocol::Response & response) = 0;
-
-private:
-
-	virtual void handleConnection(boost::asio::ip::tcp::socket socket) override {
+	void operator()(boost::asio::ip::tcp::socket socket) {
 		auto connection = std::make_shared<Connection>(std::move(socket));
 		startReadingHeader(connection);
 	}
 
-
+private:
 	void startReadingHeader(std::shared_ptr<Connection> connection) {
 		auto request = std::make_shared<protocol::Request>();
 
@@ -71,7 +62,7 @@ private:
 				startReadingHeader(connection);
 				auto response = std::make_shared<protocol::Response>();
 				response->header().requestId = request->header().requestId;
-				handleRequest(*request, *response);
+				requestHandler(*request, *response);
 				startWritingResponse(connection, response);
 			}
 		);
@@ -86,7 +77,12 @@ private:
 		);
 	}
 
+
+	RequestHandler requestHandler;
 };
+
+
+template<class RequestHandler> using Server = ::Server<ConnectionHandler<RequestHandler>>;
 
 }
 

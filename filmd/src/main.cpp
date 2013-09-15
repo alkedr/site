@@ -1,15 +1,13 @@
-/*#include <common/daemon_data.hpp>
+#include <common/daemon.hpp>
+#include <common/data.hpp>
 
 
-class Filmsd : public data::Daemon<FilmsServer> {
+class RequestHandler {
 public:
-	using Data::Data;
-
-	virtual std::string name() const override { return "filmsd"; }
-	virtual std::string version() const override { return "1.0.0"; }
+	void operator()(data::protocol::Request & request, data::protocol::Response & response) {
+	}
 };
 
-*/
-int main(int argc, char ** argv) {
-	//return Filmsd(argc, argv).run();
-}
+
+DAEMON("filmd", "1.0.0", data::Server<RequestHandler>)
+

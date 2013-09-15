@@ -73,14 +73,14 @@ private:
 
 	template<typename T> void readList(T & x) {
 		auto size = read<uint32_t>();
-		for (auto i = 0; i < size; i++) {
+		for (decltype(size) i = 0; i < size; i++) {
 			x.insert(x.end(), read<typename T::value_type>());
 		}
 	}
 
 	template<typename T> void readSet(T & x) {
 		auto size = read<uint32_t>();
-		for (auto i = 0; i < size; i++) {
+		for (decltype(size) i = 0; i < size; i++) {
 			x.insert(read<typename T::value_type>());
 		}
 	}
