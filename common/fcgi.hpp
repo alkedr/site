@@ -84,8 +84,16 @@ public:
 	}
 
 	bool isComplete() const { return parametersRead_ && stdinRead_; }
+
 	const std::map<std::string, std::string> & parameters() const { return parameters_; }
 	std::map<std::string, std::string> & parameters() { return parameters_; }
+
+	const std::string & contentType() const { return parameters_.at("CONTENT_TYPE"); }
+	const std::string & uri() const { return parameters_.at("DOCUMENT_URI"); }
+	const std::string & clientIp() const { return parameters_.at("REMOTE_ADDR"); }
+	const std::string & clientPort() const { return parameters_.at("REMOTE_PORT"); }
+	const std::string & method() const { return parameters_.at("REQUEST_METHOD"); }
+
 	const std::string & stdin() const { return stdin_; }
 	std::string & stdin() { return stdin_; }
 

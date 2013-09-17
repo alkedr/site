@@ -8,10 +8,18 @@ public:
 	template<class ResponseWriter> void operator()(fcgi::protocol::Request & request, ResponseWriter responseWriter) {
 		std::cerr << __PRETTY_FUNCTION__ << std::endl;
 		auto response = std::make_shared<fcgi::protocol::Response>();
-		response->stdout = "Content-type: text/html\r\n\r\n" +
+		if (request.uri() == "/") {
+			response->stdout = "Content-type: text/html\r\n\r\n" + index();
+		}
+		responseWriter(response);
+	}
+
+private:
+
+	std::string index() {
+		return
 #	include <htmld/templates/index.htmltc>
 		;
-		responseWriter(response);
 	}
 };
 
