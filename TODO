@@ -10,6 +10,14 @@
 
 
 
+data daemons
+статистика
+параметры командной строки
+управление через сокет ?dbus?
+
+
+
+
 new-style daemons
 	http://0pointer.de/public/systemd-man/sd-daemon.html
 

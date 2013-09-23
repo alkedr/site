@@ -10,7 +10,6 @@
 template<class ConnectionHandler> class Server {
 public:
 	Server(boost::asio::io_service & io_service) : io_service_(io_service), acceptor_(io_service, boost::asio::ip::tcp::v4(), SD_LISTEN_FDS_START) {
-		LOG_DEBUG(__PRETTY_FUNCTION__);
 	}
 
 	void start(int threadsCount) {
