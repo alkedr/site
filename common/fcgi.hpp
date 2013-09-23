@@ -27,39 +27,76 @@ enum class RequestType : uint8_t {
 	GET_VALUES_RESULT = 10
 };
 
+using Version = uint8_t;
+using RequestId = uint16_t;
+using ContentLength = uint16_t;
+using PaddingLength = uint8_t;
+using AppStatus = uint32_t;
+using ProtocolStatus = uint8_t;
 
-struct Header {
-	uint8_t version;
-	RequestType type;
-	uint8_t requestIdB1;
-	uint8_t requestIdB0;
-	uint8_t contentLengthB1;
-	uint8_t contentLengthB0;
-	uint8_t paddingLength;
-	uint8_t reserved;
 
-	uint16_t requestId() const { return static_cast<uint16_t>((requestIdB1 << 8) | requestIdB0); }
-	uint16_t contentLength() const { return static_cast<uint16_t>((contentLengthB1 << 8) | contentLengthB0); }
+class Header {
+public:
+	Header(
+		RequestType requestType = RequestType::BEGIN,
+		RequestId requestId = 1,
+		ContentLength contentLength = 0,
+		PaddingLength paddingLength = 0
+	) :
+		requestType_(requestType),
+		requestId_(htons(requestId)),
+		contentLength_(htons(contentLength)),
+		paddingLength_(paddingLength)
+	{
+	}
 
-	void dprint() {
+	Version version() const { return version_; }
+	RequestType requestType() const { return requestType_; }
+	RequestId requestId() const { return ntohs(requestId_); }
+	ContentLength contentLength() const { return ntohs(contentLength_); }
+	PaddingLength paddingLength() const { return paddingLength_; }
+
+	size_t bodyLength() const { return contentLength() + paddingLength(); }
+
+	void dprint() const {
 		std::cout
  			<< "Header:" << std::endl
-			<< "  version: " << (int)version << std::endl
-			<< "  type: " << (int)type << std::endl
+			<< "  version: " << (int)version() << std::endl
+			<< "  requestType: " << (int)requestType() << std::endl
 			<< "  requestId: " << (int)requestId() << std::endl
 			<< "  contentLength: " << (int)contentLength() << std::endl
-			<< "  paddingLength: " << (int)paddingLength << std::endl;
+			<< "  paddingLength: " << (int)paddingLength() << std::endl;
 	}
+
+private:
+	Version version_ = 1;
+	RequestType requestType_;
+	RequestId requestId_;
+	ContentLength contentLength_;
+	PaddingLength paddingLength_;
+	[[gnu::unused]] uint8_t reserved_ = 0;
 };
 
 
-struct EndRequestBody {
-	unsigned char appStatusB3;
-	unsigned char appStatusB2;
-	unsigned char appStatusB1;
-	unsigned char appStatusB0;
-	unsigned char protocolStatus;
-	unsigned char reserved[3];
+class EndRequestBody {
+public:
+	EndRequestBody(AppStatus appStatus = 0, ProtocolStatus protocolStatus = 0) : appStatus_(htonl(appStatus)), protocolStatus_(protocolStatus) {
+	}
+
+	AppStatus appStatus() const { return ntohl(appStatus_); }
+	ProtocolStatus protocolStatus() const { return protocolStatus_; }
+
+	void dprint() const {
+		std::cout
+ 			<< "Body:" << std::endl
+			<< "  appStatus: " << (int)appStatus() << std::endl
+			<< "  protocolStatus: " << (int)protocolStatus() << std::endl;
+	}
+
+private:
+	AppStatus appStatus_;
+	ProtocolStatus protocolStatus_;
+	[[gnu::unused]] unsigned char reserved_[3] = {0,0,0};
 };
 
 
@@ -72,7 +109,7 @@ class Request {
 public:
 
 	void addMessage(const Message & message) {
-		switch (message.header().type) {
+		switch (message.header().requestType()) {
 			case (RequestType::BEGIN): handleBeginMessage(message); break;
 			case (RequestType::ABORT): handleAbortMessage(message); break;
 			case (RequestType::PARAMS): handleParamsMessage(message); break;
@@ -169,6 +206,29 @@ struct Response {
 	std::string stderr;
 };
 
+
+
+static void sendStream(boost::asio::ip::tcp::socket & socket, RequestId requestId, const std::string buffer, RequestType requestType) {
+	protocol::Header header(requestType, requestId, buffer.size(), 0);
+	socket.send(boost::asio::buffer(&header, sizeof(header)));
+	socket.send(boost::asio::buffer(buffer.data(), buffer.size()));
+}
+
+static void sendStdout(boost::asio::ip::tcp::socket & socket, RequestId requestId, const std::string buffer) {
+	sendStream(socket, requestId, buffer, RequestType::STDOUT);
+}
+
+static void sendStderr(boost::asio::ip::tcp::socket & socket, RequestId requestId, const std::string buffer) {
+	sendStream(socket, requestId, buffer, RequestType::STDERR);
+}
+
+static void sendEnd(boost::asio::ip::tcp::socket & socket, RequestId requestId, AppStatus appStatus, ProtocolStatus protocolStatus) {
+	protocol::EndRequestBody body(appStatus, protocolStatus);
+	protocol::Header header(protocol::RequestType::END, requestId, sizeof(body), 0);
+	socket.send(boost::asio::buffer(&header, sizeof(header)));
+	socket.send(boost::asio::buffer(&body, sizeof(body)));
+}
+
 }
 
 
@@ -206,7 +266,7 @@ private:
 			std::shared_ptr<protocol::Message> message) {
 		LOG_DEBUG(__PRETTY_FUNCTION__);
 
-		message->setBodySize(message->header().contentLength() + message->header().paddingLength);
+		message->setBodySize(message->header().contentLength() + message->header().paddingLength());
 		boost::asio::async_read(
 			connection->socket(),
 			boost::asio::buffer(message->bodyPtr(), message->bodySize()),
@@ -233,51 +293,9 @@ private:
 	void startWritingResponse(std::shared_ptr<Connection> connection, std::shared_ptr<protocol::Response> response) {
 		LOG_DEBUG(__PRETTY_FUNCTION__);
 
-		{
-			protocol::Header header = {
-				.version = 1,
-				.type = protocol::RequestType::STDOUT,
-				.requestIdB0 = 1,
-				.requestIdB1 = 0,
-				.contentLengthB0 = static_cast<uint8_t>(response->stdout.size()),
-				.contentLengthB1 = 0,
-				.paddingLength = 0,
-				.reserved = {}
-			};
-			connection->socket().send(boost::asio::buffer(&header, sizeof(header)));
-			connection->socket().send(boost::asio::buffer(response->stdout.data(), response->stdout.size()));
-		}
-
-		{
-			protocol::Header header = {
-				.version = 1,
-				.type = protocol::RequestType::STDERR,
-				.requestIdB0 = 1,
-				.requestIdB1 = 0,
-				.contentLengthB0 = 0,
-				.contentLengthB1 = 0,
-				.paddingLength = 0,
-				.reserved = {}
-			};
-			connection->socket().send(boost::asio::buffer(&header, sizeof(header)));
-			connection->socket().send(boost::asio::buffer(response->stderr.data(), response->stderr.size()));
-		}
-
-		{
-			protocol::EndRequestBody body = {};
-			protocol::Header header = {
-				.version = 1,
-				.type = protocol::RequestType::END,
-				.requestIdB0 = 1,
-				.requestIdB1 = 0,
-				.contentLengthB0 = sizeof(body),
-				.contentLengthB1 = 0,
-				.paddingLength = 0,
-				.reserved = {}
-			};
-			connection->socket().send(boost::asio::buffer(&header, sizeof(header)));
-			connection->socket().send(boost::asio::buffer(&body, sizeof(body)));
-		}
+		protocol::sendStdout(connection->socket(), 1, response->stdout);
+		protocol::sendStderr(connection->socket(), 1, response->stderr);
+		protocol::sendEnd(connection->socket(), 1, 0, 0);
 	}
 
 
