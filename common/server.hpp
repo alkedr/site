@@ -13,7 +13,6 @@ public:
 	}
 
 	void start(int threadsCount) {
-		LOG_DEBUG(__PRETTY_FUNCTION__);
 		for (auto i = 0; i != threadsCount; ++i) {
 			workers_.create_thread(
 				[this]() {

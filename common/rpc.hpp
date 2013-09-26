@@ -48,7 +48,7 @@
 
 
 
-#include <common/daemon_data.hpp>
+#include <common/data.hpp>
 
 #define BOOST_PP_VARIADICS
 #include <boost/preprocessor.hpp>
