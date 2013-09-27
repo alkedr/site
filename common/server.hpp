@@ -2,8 +2,11 @@
 
 #include <common/log.hpp>
 
-#include <boost/asio.hpp>
-#include <boost/thread.hpp>
+#include <boost/asio/io_service.hpp>
+#include <boost/asio/ip/tcp.hpp>
+#include <boost/asio/read.hpp>
+#include <boost/asio/write.hpp>
+#include <boost/thread/thread.hpp>
 
 
 
