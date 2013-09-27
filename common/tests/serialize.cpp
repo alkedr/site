@@ -1,6 +1,7 @@
 #include <common/serialize.hpp>
 #include <common/introspection.hpp>
 
+#define CATCH_CONFIG_MAIN
 #include <common/catch.hpp>
 
 

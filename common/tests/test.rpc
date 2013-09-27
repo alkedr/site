@@ -1,7 +1,0 @@
-service myrpc
-	method 1 myMethod
-		request
-			int16_t a;
-			std::string b;
-		response
-			std::vector<std::map<int, double>> a;
