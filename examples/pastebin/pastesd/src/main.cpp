@@ -9,5 +9,5 @@ public:
 };
 
 
-DAEMON("filmd", "1.0.0", data::Server<RequestHandler>)
+DAEMON("pastesd", "1.0.0", data::Server<RequestHandler>)
 

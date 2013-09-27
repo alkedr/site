@@ -1,5 +1,0 @@
-#!/usr/bin/env python
-
-def build(bld):
-	bld.program(source='src/main.cpp', target='filmd', lib=['boost_system', 'boost_thread', 'boost_program_options'])
-

@@ -109,13 +109,17 @@ public:
 
 	void addMessage(const Message & message) {
 		switch (message.header().requestType()) {
-			case (RequestType::BEGIN): handleBeginMessage(message); break;
-			case (RequestType::ABORT): handleAbortMessage(message); break;
 			case (RequestType::PARAMS): handleParamsMessage(message); break;
 			case (RequestType::STDIN): handleStdinMessage(message); break;
-			case (RequestType::DATA): handleDataMessage(message); break;
-			case (RequestType::GET_VALUES): handleGetValuesMessage(message); break;
-			default: handleUnknownMessage(message); break;
+			case (RequestType::BEGIN):
+			case (RequestType::ABORT):
+			case (RequestType::END):
+			case (RequestType::STDOUT):
+			case (RequestType::STDERR):
+			case (RequestType::DATA):
+			case (RequestType::GET_VALUES):
+			case (RequestType::GET_VALUES_RESULT):
+				handleUnsupportedMessage(message); break;
 		}
 	}
 
@@ -134,12 +138,6 @@ public:
 	std::string & stdin() { return stdin_; }
 
 private:
-	void handleBeginMessage(const Message & message) {
-		std::clog << __FUNCTION__ << " (requestId=" << message.header().requestId() << ")" << std::endl;
-	}
-	void handleAbortMessage(const Message & message) {
-		std::clog << __FUNCTION__ << " (requestId=" << message.header().requestId() << ")" << std::endl;
-	}
 	void handleParamsMessage(const Message & message) {
 		std::clog << __FUNCTION__ << " (requestId=" << message.header().requestId() << ")" << std::endl;
 		if (message.header().contentLength() == 0) {
@@ -163,14 +161,8 @@ private:
 		} else {
 		}
 	}
-	void handleDataMessage(const Message & message) {
-		std::clog << __FUNCTION__ << " (requestId=" << message.header().requestId() << ")" << std::endl;
-	}
-	void handleGetValuesMessage(const Message & message) {
-		std::clog << __FUNCTION__ << " (requestId=" << message.header().requestId() << ")" << std::endl;
-	}
-	void handleUnknownMessage(const Message & message) {
-		std::clog << __FUNCTION__ << " (requestId=" << message.header().requestId() << ")" << std::endl;
+	void handleUnsupportedMessage(const Message & message) {
+		LOG_WARNING(__FUNCTION__ << " (requestId=" << message.header().requestId() << ")");
 	}
 
 
@@ -208,7 +200,8 @@ struct Response {
 
 
 static void sendStream(boost::asio::ip::tcp::socket & socket, RequestId requestId, const std::string buffer, RequestType requestType) {
-	protocol::Header header(requestType, requestId, buffer.size(), 0);
+	if (buffer.size() > 0xFFFF) throw std::runtime_error("message is too long");
+	protocol::Header header(requestType, requestId, (ContentLength)buffer.size(), 0);
 	socket.send(boost::asio::buffer(&header, sizeof(header)));
 	socket.send(boost::asio::buffer(buffer.data(), buffer.size()));
 }
@@ -251,7 +244,7 @@ private:
 			connection->socket(),
 			boost::asio::buffer(message->headerPtr(), message->headerSize()),
 			[this, connection, request, message](boost::system::error_code error, std::size_t length) {
-				if (!error) {
+				if ((!error) || (length != message->headerSize())) {
 					message->header().dprint();
 					startReadingBody(connection, request, message);
 				} else {
@@ -270,7 +263,7 @@ private:
 			connection->socket(),
 			boost::asio::buffer(message->bodyPtr(), message->bodySize()),
 			[this, connection, request, message](boost::system::error_code error, std::size_t length) {
-				if (!error) {
+				if ((!error) || (length != message->bodySize())) {
 					request->addMessage(*message);
 					if (request->isComplete()) {
 						requestHandler(

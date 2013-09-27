@@ -18,7 +18,7 @@ private:
 
 	std::string index() {
 		return
-#	include <htmld/templates/index.htmltc>
+#	include <examples/pastebin/htmld/templates/index.htmltc>
 		;
 	}
 };

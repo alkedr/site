@@ -49,7 +49,7 @@ private:
 			connection->socket(),
 			boost::asio::buffer(request->headerPtr(), request->headerSize()),
 			[this, connection, request](boost::system::error_code error, std::size_t length) {
-				if (!error) {
+				if ((!error) || (length != request->headerSize())) {
 					startReadingBody(connection, request);
 				} else {
 					LOG_ERROR(error);
@@ -63,7 +63,7 @@ private:
 			connection->socket(),
 			boost::asio::buffer(request->bodyPtr(), request->bodySize()),
 			[this, connection, request](boost::system::error_code error, std::size_t length) {
-				if (!error) {
+				if ((!error) || (length != request->bodySize())) {
 					startReadingHeader(connection);
 					auto response = std::make_shared<protocol::Response>();
 					response->header().requestId = request->header().requestId;
@@ -81,7 +81,7 @@ private:
 			connection->socket(),
 			boost::asio::buffer(response->data(), response->dataSize()),
 			[this, connection, response](boost::system::error_code error, std::size_t length) {
-				if (!error) {
+				if ((!error) || (length != response->dataSize())) {
 				} else {
 					LOG_ERROR(error);
 				}

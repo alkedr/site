@@ -13,5 +13,4 @@ structure of subproject 'name':
 	source - name/src/main.cpp
 	unit tests - name/tests/*.cpp
 	templates for unit tests - name/tests/templates
-	integration tests - tests/
 

@@ -1,0 +1,6 @@
+#!/usr/bin/env python
+
+def build(bld):
+	bld(name='templates', source=bld.path.ant_glob('templates/*.htmlt'))
+	bld.program(source='src/main.cpp', target='htmld', lib=['boost_system', 'boost_thread', 'boost_program_options'], use=['templates', 'RootFolder'])
+
