@@ -5,6 +5,11 @@
 class RequestHandler {
 public:
 	void operator()(data::protocol::Request & request, data::protocol::Response & response) {
+		switch (request.header().method) {
+			default: break;
+		}
+
+		response.header().errorCode = 0;
 	}
 };
 
