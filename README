@@ -11,6 +11,7 @@ structure of subproject 'name':
 	private headers - name/src/*.hpp
 	templates - name/templates/*.htmlt
 	source - name/src/main.cpp
-	tests - name/tests/*.cpp
-	templates for tests - name/tests/templates
+	unit tests - name/tests/*.cpp
+	templates for unit tests - name/tests/templates
+	integration tests - tests/
 
