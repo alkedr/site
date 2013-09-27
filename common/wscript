@@ -24,5 +24,5 @@ def build(bld):
 	bld(name='templates', source=bld.path.ant_glob('tests/templates/*.htmlt'))
 
 	bld.program(features='test', use='templates', source=['tests/preprocessor.cpp'], target='preprocessor')
-	bld.program(features='test', source=['tests/serialize.cpp'], target='preprocessor')
+	bld.program(features='test', source=['tests/serialize.cpp'], target='serialize')
 
