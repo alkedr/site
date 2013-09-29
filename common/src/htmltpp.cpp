@@ -4,6 +4,8 @@
 #include <stdexcept>
 
 
+namespace {
+
 
 class preprocess {
 public:
@@ -178,6 +180,9 @@ private:
 		throw std::runtime_error("unknown command: $" + command + "(" + parameters + ")");
 	}
 };
+
+
+}
 
 
 

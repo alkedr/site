@@ -2,6 +2,8 @@
 #include <common/fcgi.hpp>
 #include <common/templater.hpp>
 
+namespace {
+
 
 class RequestHandler {
 public:
@@ -31,6 +33,9 @@ private:
 		;
 	}
 };
+
+
+}
 
 
 DAEMON("htmld", "1.0.0", fcgi::Server<RequestHandler>)
