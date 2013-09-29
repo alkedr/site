@@ -16,6 +16,7 @@ data daemons
 управление через сокет ?dbus?
 
 
+parse urls with boost::spirit
 
 
 new-style daemons
