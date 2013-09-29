@@ -20,7 +20,7 @@ def process_src(self, node):
 
 
 def build(bld):
-	bld.program(source='src/preprocessor.cpp', target='htmltpp')
+	bld.program(source='src/htmltpp.cpp', target='htmltpp')
 	bld(name='templates', source=bld.path.ant_glob('tests/templates/*.htmlt'))
 
 	bld.program(features='test', source=['tests/preprocessor.cpp'], target='preprocessor', use=['templates', 'RootFolder'])
