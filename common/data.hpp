@@ -36,8 +36,7 @@ namespace data {
 
 template<class RequestHandler> class ConnectionHandler {
 public:
-	void operator()(boost::asio::ip::tcp::socket socket) {
-		auto connection = std::make_shared<Connection>(std::move(socket));
+	void operator()(std::shared_ptr<Connection> connection) {
 		startReadingHeader(connection);
 	}
 
@@ -45,47 +44,31 @@ private:
 	void startReadingHeader(std::shared_ptr<Connection> connection) {
 		auto request = std::make_shared<protocol::Request>();
 
-		boost::asio::async_read(
-			connection->socket(),
+		connection->read(
 			boost::asio::buffer(request->headerPtr(), request->headerSize()),
-			[this, connection, request](boost::system::error_code error, std::size_t length) {
-				if ((!error) || (length != request->headerSize())) {
-					startReadingBody(connection, request);
-				} else {
-					LOG_ERROR(error);
-				}
+			[this, connection, request]() {
+				startReadingBody(connection, request);
 			}
 		);
 	}
 
 	void startReadingBody(std::shared_ptr<Connection> connection, std::shared_ptr<protocol::Request> request) {
-		boost::asio::async_read(
-			connection->socket(),
+		connection->read(
 			boost::asio::buffer(request->bodyPtr(), request->bodySize()),
-			[this, connection, request](boost::system::error_code error, std::size_t length) {
-				if ((!error) || (length != request->bodySize())) {
-					startReadingHeader(connection);
-					auto response = std::make_shared<protocol::Response>();
-					response->header().requestId = request->header().requestId;
-					requestHandler(*request, *response);
-					startWritingResponse(connection, response);
-				} else {
-					LOG_ERROR(error);
-				}
+			[this, connection, request]() {
+				startReadingHeader(connection);
+				auto response = std::make_shared<protocol::Response>();
+				response->header().requestId = request->header().requestId;
+				requestHandler(*request, *response);
+				startWritingResponse(connection, response);
 			}
 		);
 	}
 
 	void startWritingResponse(std::shared_ptr<Connection> connection, std::shared_ptr<protocol::Response> response) {
-		boost::asio::async_write(
-			connection->socket(),
+		connection->write(
 			boost::asio::buffer(response->data(), response->dataSize()),
-			[this, connection, response](boost::system::error_code error, std::size_t length) {
-				if ((!error) || (length != response->dataSize())) {
-				} else {
-					LOG_ERROR(error);
-				}
-			}
+			[this, connection, response]() {}
 		);
 	}
 

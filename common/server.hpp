@@ -1,6 +1,7 @@
 #pragma once
 
 #include <common/log.hpp>
+#include <common/connection.hpp>
 
 #include <boost/asio/io_service.hpp>
 #include <boost/asio/ip/tcp.hpp>
@@ -12,16 +13,16 @@
 
 template<class ConnectionHandler> class Server {
 public:
-	Server(boost::asio::io_service & io_service) : io_service_(io_service), acceptor_(io_service, boost::asio::ip::tcp::v4(), SD_LISTEN_FDS_START) {
+	Server(boost::asio::ip::tcp::acceptor && acceptor) : acceptor_(std::move(acceptor)) {
 	}
 
 	void start(int threadsCount) {
 		for (auto i = 0; i != threadsCount; ++i) {
 			workers_.create_thread(
 				[this]() {
-					boost::asio::ip::tcp::socket clientSocket(io_service_);
+					boost::asio::ip::tcp::socket clientSocket(io_service());
 					startAccepting(clientSocket);
-					io_service_.run();
+					io_service().run();
 				}
 			);
 		}
@@ -32,13 +33,17 @@ public:
 	}
 
 private:
+
+	boost::asio::io_service & io_service() { return acceptor_.get_io_service(); }
+	const boost::asio::io_service & io_service() const { return acceptor_.get_io_service(); }
+
 	void startAccepting(boost::asio::ip::tcp::socket & socket) {
-		LOG_DEBUG(__PRETTY_FUNCTION__);
+		LOG_DEBUG("server " << __FUNCTION__);
 		acceptor_.async_accept(
 			socket,
 			[&socket, this](boost::system::error_code error) {
 				if (!error) {
-					connectionHandler_(std::move(socket));
+					connectionHandler_(std::make_shared<Connection>(std::move(socket)));
 				} else {
 					LOG_ERROR(error);
 					sleep(1);
@@ -48,7 +53,6 @@ private:
 		);
 	}
 
-	boost::asio::io_service & io_service_;
 	boost::asio::ip::tcp::acceptor acceptor_;
 	boost::thread_group workers_;
 	ConnectionHandler connectionHandler_;

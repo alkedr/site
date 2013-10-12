@@ -240,16 +240,11 @@ private:
 
 		std::cerr << __FUNCTION__ << "  " << message->headerSize() << std::endl;
 
-		boost::asio::async_read(
-			connection->socket(),
+		connection->read(
 			boost::asio::buffer(message->headerPtr(), message->headerSize()),
-			[this, connection, request, message](boost::system::error_code error, std::size_t length) {
-				if ((!error) || (length != message->headerSize())) {
-					message->header().dprint();
-					startReadingBody(connection, request, message);
-				} else {
-					LOG_ERROR(error);
-				}
+			[this, connection, request, message]() {
+				message->header().dprint();
+				startReadingBody(connection, request, message);
 			}
 		);
 	}
@@ -259,24 +254,19 @@ private:
 		LOG_DEBUG(__PRETTY_FUNCTION__);
 
 		message->setBodySize(message->header().contentLength() + message->header().paddingLength());
-		boost::asio::async_read(
-			connection->socket(),
+		connection->read(
 			boost::asio::buffer(message->bodyPtr(), message->bodySize()),
-			[this, connection, request, message](boost::system::error_code error, std::size_t length) {
-				if ((!error) || (length != message->bodySize())) {
-					request->addMessage(*message);
-					if (request->isComplete()) {
-						requestHandler(
-							*request,
-							[this, connection](std::shared_ptr<protocol::Response> response) {
-								startWritingResponse(connection, response);
-							}
-						);
-					} else {
-						startReadingHeader(connection, request);
-					}
+			[this, connection, request, message]() {
+				request->addMessage(*message);
+				if (request->isComplete()) {
+					requestHandler(
+						*request,
+						[this, connection](std::shared_ptr<protocol::Response> response) {
+							startWritingResponse(connection, response);
+						}
+					);
 				} else {
-					LOG_ERROR(error);
+					startReadingHeader(connection, request);
 				}
 			}
 		);
@@ -285,9 +275,9 @@ private:
 	void startWritingResponse(std::shared_ptr<Connection> connection, std::shared_ptr<protocol::Response> response) {
 		LOG_DEBUG(__PRETTY_FUNCTION__);
 
-		protocol::sendStdout(connection->socket(), 1, response->stdout);
-		protocol::sendStderr(connection->socket(), 1, response->stderr);
-		protocol::sendEnd(connection->socket(), 1, 0, 0);
+		//protocol::sendStdout(connection->socket(), 1, response->stdout);
+		//protocol::sendStderr(connection->socket(), 1, response->stderr);
+		//protocol::sendEnd(connection->socket(), 1, 0, 0);
 	}
 
 
